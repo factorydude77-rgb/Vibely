@@ -1,248 +1,189 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Vibely</title>
 
-// ================= Vibely =================
-const PLATFORM_NAME = "Vibely";
-const ADMIN_PASSCODE = "FactoryDudeCrew";
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-// ---------- storage helpers ----------
-const load = (k, f) => {
-  try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; }
-};
-const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  <style>
+    body { font-family: Arial; margin:0; background:#f3f4f6; }
+    header { background:#6366f1; color:white; padding:15px; font-size:24px; }
+    nav button { margin:5px; padding:8px 12px; }
+    .card { background:white; margin:10px; padding:10px; border-radius:6px; }
+    input, textarea, select { width:100%; padding:6px; margin:4px 0; }
+    .chatbox { height:200px; overflow:auto; border:1px solid #ccc; padding:6px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
 
-// ---------- AI Bot ----------
-const aiReply = () => "I am Your AI Bot 🤖 — always here to chat!";
+<script type="text/babel">
 
-export default function App() {
-  const [users, setUsers] = useState(() => load("users", []));
-  const [currentUser, setCurrentUser] = useState(() => load("currentUser", null));
-  const [messages, setMessages] = useState(() => load("messages", {}));
-  const [posts, setPosts] = useState(() => load("posts", []));
-  const [bans, setBans] = useState(() => load("bans", {}));
-  const [darkMode, setDarkMode] = useState(() => load("darkMode", false));
-  const [page, setPage] = useState("feed");
+const { useState, useEffect } = React;
+const ADMIN_PASS = "FactoryDudeCrew";
 
-  useEffect(() => save("users", users), [users]);
-  useEffect(() => save("currentUser", currentUser), [currentUser]);
-  useEffect(() => save("messages", messages), [messages]);
-  useEffect(() => save("posts", posts), [posts]);
-  useEffect(() => save("bans", bans), [bans]);
-  useEffect(() => save("darkMode", darkMode), [darkMode]);
+function App(){
+  const [page,setPage]=useState("feed");
+  const [users,setUsers]=useState(JSON.parse(localStorage.getItem("users"))||[]);
+  const [current,setCurrent]=useState(JSON.parse(localStorage.getItem("current"))||null);
+  const [posts,setPosts]=useState(JSON.parse(localStorage.getItem("posts"))||[]);
+  const [messages,setMessages]=useState(JSON.parse(localStorage.getItem("messages"))||{});
+  const [bans,setBans]=useState(JSON.parse(localStorage.getItem("bans"))||{});
+  const [dark,setDark]=useState(false);
 
-  const isBanned = (username) => bans[username] && Date.now() < bans[username];
+  useEffect(()=>localStorage.setItem("users",JSON.stringify(users)),[users]);
+  useEffect(()=>localStorage.setItem("current",JSON.stringify(current)),[current]);
+  useEffect(()=>localStorage.setItem("posts",JSON.stringify(posts)),[posts]);
+  useEffect(()=>localStorage.setItem("messages",JSON.stringify(messages)),[messages]);
+  useEffect(()=>localStorage.setItem("bans",JSON.stringify(bans)),[bans]);
 
-  const sendMessage = (to, text) => {
-    if (!text.trim()) return;
-    if (isBanned(currentUser.username)) return alert("You are banned temporarily.");
+  if(!current) return <Login users={users} setUsers={setUsers} setCurrent={setCurrent} bans={bans}/>;
 
-    const key = [currentUser.username, to].sort().join("-");
-    const chat = messages[key] || [];
-    let updated = [...chat, { from: currentUser.username, text }];
+  const isBanned=(u)=>bans[u] && Date.now()<bans[u];
 
-    if (to === "Your AI Bot") {
-      updated.push({ from: "Your AI Bot", text: aiReply(text) });
-    }
-
-    setMessages({ ...messages, [key]: updated });
-  };
-
-  if (!currentUser) {
-    return <Login users={users} setUsers={setUsers} setCurrentUser={setCurrentUser} bans={bans} />;
-  }
-
-  return (
-    <div className={darkMode ? "bg-black text-white min-h-screen p-6" : "bg-gray-100 min-h-screen p-6"}>
-      <h1 className="text-3xl font-bold mb-4">{PLATFORM_NAME}</h1>
-
-      <nav className="flex gap-2 mb-4 flex-wrap">
-        <Button onClick={() => setPage("feed")}>Feed</Button>
-        <Button onClick={() => setPage("chat")}>Chat</Button>
-        <Button onClick={() => setPage("profile")}>Profile</Button>
-        <Button onClick={() => setPage("search")}>Search</Button>
-        <Button onClick={() => setPage("adminGate")}>Admin</Button>
-        <Button onClick={() => setDarkMode(!darkMode)}>Dark Mode</Button>
+  return(
+    <div style={{background:dark?"#111":"#f3f4f6",minHeight:"100vh",color:dark?"white":"black"}}>
+      <header>Vibely</header>
+      <nav>
+        <button onClick={()=>setPage("feed")}>Feed</button>
+        <button onClick={()=>setPage("chat")}>Chat</button>
+        <button onClick={()=>setPage("profile")}>Profile</button>
+        <button onClick={()=>setPage("search")}>Search</button>
+        <button onClick={()=>setPage("adminGate")}>Admin</button>
+        <button onClick={()=>setDark(!dark)}>Dark Mode</button>
       </nav>
 
-      {page === "feed" && <Feed posts={posts} setPosts={setPosts} currentUser={currentUser} isBanned={isBanned} />}
-      {page === "chat" && <Chat users={users} currentUser={currentUser} messages={messages} sendMessage={sendMessage} />}
-      {page === "profile" && <Profile currentUser={currentUser} users={users} setUsers={setUsers} setCurrentUser={setCurrentUser} />}
-      {page === "search" && <Search users={users} />}
-      {page === "adminGate" && <AdminGate setPage={setPage} />}
-      {page === "admin" && <Admin users={users} bans={bans} setBans={setBans} />}
+      {page==="feed" && <Feed posts={posts} setPosts={setPosts} current={current} isBanned={isBanned}/>}
+      {page==="chat" && <Chat users={users} current={current} messages={messages} setMessages={setMessages}/>}
+      {page==="profile" && <Profile current={current} setCurrent={setCurrent} users={users} setUsers={setUsers}/>}
+      {page==="search" && <Search users={users}/>}
+      {page==="adminGate" && <AdminGate setPage={setPage}/>}
+      {page==="admin" && <Admin users={users} bans={bans} setBans={setBans}/>}
     </div>
   );
 }
 
-// ---------------- Login ----------------
-function Login({ users, setUsers, setCurrentUser, bans }) {
-  const [username, setUsername] = useState("");
-
-  const enter = () => {
-    if (!username.trim()) return;
-    if (bans[username] && Date.now() < bans[username]) return alert("You are banned.");
-
-    let u = users.find((x) => x.username === username);
-    if (!u) {
-      u = { username, bio: "New here!" };
-      setUsers([...users, u]);
-    }
-    setCurrentUser(u);
+function Login({users,setUsers,setCurrent,bans}){
+  const [name,setName]=useState("");
+  const enter=()=>{
+    if(bans[name] && Date.now()<bans[name]) return alert("Banned");
+    let u=users.find(x=>x.username===name);
+    if(!u){u={username:name,bio:"New here!"};setUsers([...users,u]);}
+    setCurrent(u);
   };
-
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <Card className="w-96"><CardContent className="p-6 space-y-4">
-        <h2 className="text-xl font-bold">Welcome to Vibely</h2>
-        <input className="border p-2 w-full" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Username" />
-        <Button onClick={enter}>Enter</Button>
-      </CardContent></Card>
+  return(
+    <div className="card">
+      <h2>Login to Vibely</h2>
+      <input onChange={e=>setName(e.target.value)} placeholder="Username"/>
+      <button onClick={enter}>Enter</button>
     </div>
   );
 }
 
-// ---------------- Feed ----------------
-function Feed({ posts, setPosts, currentUser, isBanned }) {
-  const [text, setText] = useState("");
+function Feed({posts,setPosts,current,isBanned}){
+  const [text,setText]=useState("");
+  const post=()=>{
+    if(isBanned(current.username)) return alert("Banned");
+    setPosts([{id:Date.now(),author:current.username,text},...posts]);
+    setText("");
+  };
+  return(
+    <div className="card">
+      <textarea value={text} onChange={e=>setText(e.target.value)}/>
+      <button onClick={post}>Post</button>
+      {posts.map(p=><div key={p.id}><b>{p.author}:</b> {p.text}</div>)}
+    </div>
+  );
+}
 
-  const post = () => {
-    if (isBanned(currentUser.username)) return alert("You are banned.");
-    if (!text.trim()) return;
-    setPosts([{ id: Date.now(), author: currentUser.username, content: text }, ...posts]);
+function Chat({users,current,messages,setMessages}){
+  const [to,setTo]=useState("Your AI Bot");
+  const [text,setText]=useState("");
+  const key=[current.username,to].sort().join("-");
+  const chat=messages[key]||[];
+
+  const send=()=>{
+    let c=[...chat,{from:current.username,text}];
+    if(to==="Your AI Bot") c.push({from:"Your AI Bot",text:"I am Your AI Bot 🤖"});
+    setMessages({...messages,[key]:c});
     setText("");
   };
 
-  return (
-    <Card><CardContent className="p-4 space-y-2">
-      <textarea className="w-full border p-2" value={text} onChange={e=>setText(e.target.value)} />
-      <Button onClick={post}>Post</Button>
-      {posts.map(p => (
-        <div key={p.id} className="border p-2 mt-2">
-          <b>{p.author}</b>: {p.content}
-        </div>
-      ))}
-    </CardContent></Card>
-  );
-}
-
-// ---------------- Chat ----------------
-function Chat({ users, currentUser, messages, sendMessage }) {
-  const [selected, setSelected] = useState("Your AI Bot");
-  const [text, setText] = useState("");
-  const key = [currentUser.username, selected].sort().join("-");
-  const chat = messages[key] || [];
-
-  return (
-    <div className="grid grid-cols-3 gap-4">
-      <Card><CardContent className="p-2">
-        <Button className="w-full mb-2" onClick={()=>setSelected("Your AI Bot")}>🤖 Your AI Bot</Button>
-        {users.filter(u=>u.username!==currentUser.username).map(u=>(
-          <Button key={u.username} className="w-full mb-2" onClick={()=>setSelected(u.username)}>{u.username}</Button>
-        ))}
-      </CardContent></Card>
-
-      <Card className="col-span-2"><CardContent className="p-2">
-        <div className="h-64 overflow-y-auto border mb-2 p-2">
-          {chat.map((m,i)=>(<div key={i}><b>{m.from}:</b> {m.text}</div>))}
-        </div>
-        <div className="flex gap-2">
-          <input className="border p-2 w-full" value={text} onChange={e=>setText(e.target.value)} />
-          <Button onClick={()=>{sendMessage(selected,text);setText("");}}>Send</Button>
-        </div>
-      </CardContent></Card>
+  return(
+    <div className="card">
+      <select onChange={e=>setTo(e.target.value)}>
+        <option>Your AI Bot</option>
+        {users.filter(u=>u.username!==current.username).map(u=>
+          <option key={u.username}>{u.username}</option>
+        )}
+      </select>
+      <div className="chatbox">
+        {chat.map((m,i)=><div key={i}><b>{m.from}:</b> {m.text}</div>)}
+      </div>
+      <input value={text} onChange={e=>setText(e.target.value)}/>
+      <button onClick={send}>Send</button>
     </div>
   );
 }
 
-// ---------------- Profile ----------------
-function Profile({ currentUser, users, setUsers, setCurrentUser }) {
-  const [username, setUsername] = useState(currentUser.username);
-  const [bio, setBio] = useState(currentUser.bio);
-
-  const saveProfile = () => {
-    const updated = { ...currentUser, username, bio };
-    setUsers(users.map(u=>u.username===currentUser.username?updated:u));
-    setCurrentUser(updated);
+function Profile({current,setCurrent,users,setUsers}){
+  const [name,setName]=useState(current.username);
+  const [bio,setBio]=useState(current.bio);
+  const save=()=>{
+    const u={...current,username:name,bio};
+    setUsers(users.map(x=>x.username===current.username?u:x));
+    setCurrent(u);
   };
-
-  return (
-    <Card><CardContent className="p-4 space-y-2">
-      <input className="border p-2 w-full" value={username} onChange={e=>setUsername(e.target.value)} />
-      <textarea className="border p-2 w-full" value={bio} onChange={e=>setBio(e.target.value)} />
-      <Button onClick={saveProfile}>Save</Button>
-    </CardContent></Card>
+  return(
+    <div className="card">
+      <input value={name} onChange={e=>setName(e.target.value)}/>
+      <textarea value={bio} onChange={e=>setBio(e.target.value)}/>
+      <button onClick={save}>Save</button>
+    </div>
   );
 }
 
-// ---------------- Search ----------------
-function Search({ users }) {
-  const [q, setQ] = useState("");
-  return (
-    <Card><CardContent className="p-4">
-      <input className="border p-2 w-full mb-2" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search users" />
-      {users.filter(u=>u.username.includes(q)).map(u=>(<div key={u.username}>{u.username}</div>))}
-    </CardContent></Card>
+function Search({users}){
+  return(
+    <div className="card">
+      {users.map(u=><div key={u.username}>{u.username}</div>)}
+    </div>
   );
 }
 
-// ---------------- Admin Gate ----------------
-function AdminGate({ setPage }) {
-  const [code, setCode] = useState("");
-
-  const check = () => {
-    if (code === ADMIN_PASSCODE) setPage("admin");
-    else alert("Wrong passcode");
-  };
-
-  return (
-    <Card><CardContent className="p-6 space-y-3">
-      <h2 className="text-xl font-bold">Enter Admin Passcode</h2>
-      <input className="border p-2 w-full" value={code} onChange={e=>setCode(e.target.value)} />
-      <Button onClick={check}>Enter</Button>
-    </CardContent></Card>
+function AdminGate({setPage}){
+  const [c,setC]=useState("");
+  return(
+    <div className="card">
+      <input placeholder="Passcode" onChange={e=>setC(e.target.value)}/>
+      <button onClick={()=>c===ADMIN_PASS?setPage("admin"):alert("Wrong")}>Enter</button>
+    </div>
   );
 }
 
-// ---------------- Admin Panel ----------------
-function Admin({ users, bans, setBans }) {
-  const banUser = (username, minutes) => {
-    const until = Date.now() + minutes * 60000;
-    setBans({ ...bans, [username]: until });
-  };
+function Admin({users,bans,setBans}){
+  const ban=(u,m)=>setBans({...bans,[u]:Date.now()+m*60000});
+  const unban=(u)=>{let b={...bans};delete b[u];setBans(b);};
 
-  const unbanUser = (username) => {
-    const copy = { ...bans };
-    delete copy[username];
-    setBans(copy);
-  };
-
-  const isBanned = (username) => bans[username] && Date.now() < bans[username];
-
-  return (
-    <Card>
-      <CardContent className="p-4 space-y-2">
-        <h2 className="text-xl font-bold">Admin Panel</h2>
-        {users.map(u => (
-          <div key={u.username} className="flex justify-between items-center border p-2">
-            <div>
-              <div className="font-semibold">{u.username}</div>
-              {isBanned(u.username) && (
-                <div className="text-sm text-red-500">Currently Banned</div>
-              )}
-            </div>
-
-            <div className="flex gap-2 flex-wrap">
-              <Button onClick={() => banUser(u.username, 5)}>Ban 5m</Button>
-              <Button onClick={() => banUser(u.username, 60)}>Ban 1h</Button>
-              <Button onClick={() => banUser(u.username, 1440)}>Ban 24h</Button>
-              {isBanned(u.username) && (
-                <Button onClick={() => unbanUser(u.username)}>Unban</Button>
-              )}
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+  return(
+    <div className="card">
+      {users.map(u=>
+        <div key={u.username}>
+          {u.username}
+          <button onClick={()=>ban(u.username,5)}>Ban 5m</button>
+          <button onClick={()=>ban(u.username,60)}>Ban 1h</button>
+          <button onClick={()=>unban(u.username)}>Unban</button>
+        </div>
+      )}
+    </div>
   );
 }
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+
+</script>
+</body>
+</html>
