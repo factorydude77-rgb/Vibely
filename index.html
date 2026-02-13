@@ -1,33 +1,248 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Vibely</title>
-  <style>
-    body {
-      background: #0f172a;
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 100px;
-    }
-    h1 { font-size: 60px; }
-    p { font-size: 22px; color: #94a3b8; }
-    button {
-      padding: 12px 24px;
-      font-size: 18px;
-      background: #6366f1;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-  </style>
-</head>
-<body>
+import React, { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
-  <h1>Vibely</h1>
-  <p>A Social Platform</p>
-  <button onclick="alert('Vibely coming soon!')">Join Now</button>
+// ================= Vibely =================
+const PLATFORM_NAME = "Vibely";
+const ADMIN_PASSCODE = "FactoryDudeCrew";
 
-</body>
-</html>
+// ---------- storage helpers ----------
+const load = (k, f) => {
+  try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; }
+};
+const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
+// ---------- AI Bot ----------
+const aiReply = () => "I am Your AI Bot 🤖 — always here to chat!";
+
+export default function App() {
+  const [users, setUsers] = useState(() => load("users", []));
+  const [currentUser, setCurrentUser] = useState(() => load("currentUser", null));
+  const [messages, setMessages] = useState(() => load("messages", {}));
+  const [posts, setPosts] = useState(() => load("posts", []));
+  const [bans, setBans] = useState(() => load("bans", {}));
+  const [darkMode, setDarkMode] = useState(() => load("darkMode", false));
+  const [page, setPage] = useState("feed");
+
+  useEffect(() => save("users", users), [users]);
+  useEffect(() => save("currentUser", currentUser), [currentUser]);
+  useEffect(() => save("messages", messages), [messages]);
+  useEffect(() => save("posts", posts), [posts]);
+  useEffect(() => save("bans", bans), [bans]);
+  useEffect(() => save("darkMode", darkMode), [darkMode]);
+
+  const isBanned = (username) => bans[username] && Date.now() < bans[username];
+
+  const sendMessage = (to, text) => {
+    if (!text.trim()) return;
+    if (isBanned(currentUser.username)) return alert("You are banned temporarily.");
+
+    const key = [currentUser.username, to].sort().join("-");
+    const chat = messages[key] || [];
+    let updated = [...chat, { from: currentUser.username, text }];
+
+    if (to === "Your AI Bot") {
+      updated.push({ from: "Your AI Bot", text: aiReply(text) });
+    }
+
+    setMessages({ ...messages, [key]: updated });
+  };
+
+  if (!currentUser) {
+    return <Login users={users} setUsers={setUsers} setCurrentUser={setCurrentUser} bans={bans} />;
+  }
+
+  return (
+    <div className={darkMode ? "bg-black text-white min-h-screen p-6" : "bg-gray-100 min-h-screen p-6"}>
+      <h1 className="text-3xl font-bold mb-4">{PLATFORM_NAME}</h1>
+
+      <nav className="flex gap-2 mb-4 flex-wrap">
+        <Button onClick={() => setPage("feed")}>Feed</Button>
+        <Button onClick={() => setPage("chat")}>Chat</Button>
+        <Button onClick={() => setPage("profile")}>Profile</Button>
+        <Button onClick={() => setPage("search")}>Search</Button>
+        <Button onClick={() => setPage("adminGate")}>Admin</Button>
+        <Button onClick={() => setDarkMode(!darkMode)}>Dark Mode</Button>
+      </nav>
+
+      {page === "feed" && <Feed posts={posts} setPosts={setPosts} currentUser={currentUser} isBanned={isBanned} />}
+      {page === "chat" && <Chat users={users} currentUser={currentUser} messages={messages} sendMessage={sendMessage} />}
+      {page === "profile" && <Profile currentUser={currentUser} users={users} setUsers={setUsers} setCurrentUser={setCurrentUser} />}
+      {page === "search" && <Search users={users} />}
+      {page === "adminGate" && <AdminGate setPage={setPage} />}
+      {page === "admin" && <Admin users={users} bans={bans} setBans={setBans} />}
+    </div>
+  );
+}
+
+// ---------------- Login ----------------
+function Login({ users, setUsers, setCurrentUser, bans }) {
+  const [username, setUsername] = useState("");
+
+  const enter = () => {
+    if (!username.trim()) return;
+    if (bans[username] && Date.now() < bans[username]) return alert("You are banned.");
+
+    let u = users.find((x) => x.username === username);
+    if (!u) {
+      u = { username, bio: "New here!" };
+      setUsers([...users, u]);
+    }
+    setCurrentUser(u);
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <Card className="w-96"><CardContent className="p-6 space-y-4">
+        <h2 className="text-xl font-bold">Welcome to Vibely</h2>
+        <input className="border p-2 w-full" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Username" />
+        <Button onClick={enter}>Enter</Button>
+      </CardContent></Card>
+    </div>
+  );
+}
+
+// ---------------- Feed ----------------
+function Feed({ posts, setPosts, currentUser, isBanned }) {
+  const [text, setText] = useState("");
+
+  const post = () => {
+    if (isBanned(currentUser.username)) return alert("You are banned.");
+    if (!text.trim()) return;
+    setPosts([{ id: Date.now(), author: currentUser.username, content: text }, ...posts]);
+    setText("");
+  };
+
+  return (
+    <Card><CardContent className="p-4 space-y-2">
+      <textarea className="w-full border p-2" value={text} onChange={e=>setText(e.target.value)} />
+      <Button onClick={post}>Post</Button>
+      {posts.map(p => (
+        <div key={p.id} className="border p-2 mt-2">
+          <b>{p.author}</b>: {p.content}
+        </div>
+      ))}
+    </CardContent></Card>
+  );
+}
+
+// ---------------- Chat ----------------
+function Chat({ users, currentUser, messages, sendMessage }) {
+  const [selected, setSelected] = useState("Your AI Bot");
+  const [text, setText] = useState("");
+  const key = [currentUser.username, selected].sort().join("-");
+  const chat = messages[key] || [];
+
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      <Card><CardContent className="p-2">
+        <Button className="w-full mb-2" onClick={()=>setSelected("Your AI Bot")}>🤖 Your AI Bot</Button>
+        {users.filter(u=>u.username!==currentUser.username).map(u=>(
+          <Button key={u.username} className="w-full mb-2" onClick={()=>setSelected(u.username)}>{u.username}</Button>
+        ))}
+      </CardContent></Card>
+
+      <Card className="col-span-2"><CardContent className="p-2">
+        <div className="h-64 overflow-y-auto border mb-2 p-2">
+          {chat.map((m,i)=>(<div key={i}><b>{m.from}:</b> {m.text}</div>))}
+        </div>
+        <div className="flex gap-2">
+          <input className="border p-2 w-full" value={text} onChange={e=>setText(e.target.value)} />
+          <Button onClick={()=>{sendMessage(selected,text);setText("");}}>Send</Button>
+        </div>
+      </CardContent></Card>
+    </div>
+  );
+}
+
+// ---------------- Profile ----------------
+function Profile({ currentUser, users, setUsers, setCurrentUser }) {
+  const [username, setUsername] = useState(currentUser.username);
+  const [bio, setBio] = useState(currentUser.bio);
+
+  const saveProfile = () => {
+    const updated = { ...currentUser, username, bio };
+    setUsers(users.map(u=>u.username===currentUser.username?updated:u));
+    setCurrentUser(updated);
+  };
+
+  return (
+    <Card><CardContent className="p-4 space-y-2">
+      <input className="border p-2 w-full" value={username} onChange={e=>setUsername(e.target.value)} />
+      <textarea className="border p-2 w-full" value={bio} onChange={e=>setBio(e.target.value)} />
+      <Button onClick={saveProfile}>Save</Button>
+    </CardContent></Card>
+  );
+}
+
+// ---------------- Search ----------------
+function Search({ users }) {
+  const [q, setQ] = useState("");
+  return (
+    <Card><CardContent className="p-4">
+      <input className="border p-2 w-full mb-2" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search users" />
+      {users.filter(u=>u.username.includes(q)).map(u=>(<div key={u.username}>{u.username}</div>))}
+    </CardContent></Card>
+  );
+}
+
+// ---------------- Admin Gate ----------------
+function AdminGate({ setPage }) {
+  const [code, setCode] = useState("");
+
+  const check = () => {
+    if (code === ADMIN_PASSCODE) setPage("admin");
+    else alert("Wrong passcode");
+  };
+
+  return (
+    <Card><CardContent className="p-6 space-y-3">
+      <h2 className="text-xl font-bold">Enter Admin Passcode</h2>
+      <input className="border p-2 w-full" value={code} onChange={e=>setCode(e.target.value)} />
+      <Button onClick={check}>Enter</Button>
+    </CardContent></Card>
+  );
+}
+
+// ---------------- Admin Panel ----------------
+function Admin({ users, bans, setBans }) {
+  const banUser = (username, minutes) => {
+    const until = Date.now() + minutes * 60000;
+    setBans({ ...bans, [username]: until });
+  };
+
+  const unbanUser = (username) => {
+    const copy = { ...bans };
+    delete copy[username];
+    setBans(copy);
+  };
+
+  const isBanned = (username) => bans[username] && Date.now() < bans[username];
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-2">
+        <h2 className="text-xl font-bold">Admin Panel</h2>
+        {users.map(u => (
+          <div key={u.username} className="flex justify-between items-center border p-2">
+            <div>
+              <div className="font-semibold">{u.username}</div>
+              {isBanned(u.username) && (
+                <div className="text-sm text-red-500">Currently Banned</div>
+              )}
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={() => banUser(u.username, 5)}>Ban 5m</Button>
+              <Button onClick={() => banUser(u.username, 60)}>Ban 1h</Button>
+              <Button onClick={() => banUser(u.username, 1440)}>Ban 24h</Button>
+              {isBanned(u.username) && (
+                <Button onClick={() => unbanUser(u.username)}>Unban</Button>
+              )}
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
